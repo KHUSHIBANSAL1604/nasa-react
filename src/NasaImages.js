@@ -1,28 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 const NasaImages = () => {
   const [query, setQuery] = useState('');
   const [images, setImages] = useState([]);
+  const [displayedImages, setDisplayedImages] = useState([]);
   const [selectedImage, setSelectedImage] = useState(null);
   const [error, setError] = useState(null);
+  const [page, setPage] = useState(1); 
+  const [isLoading, setIsLoading] = useState(false);
 
   const API_KEY = process.env.REACT_APP_NASA_API_KEY;
   const BASE_URL = 'https://images-api.nasa.gov';
+  const perPage = 5; 
 
   const fetchImages = async () => {
+    setIsLoading(true);
     try {
       const response = await axios.get(`${BASE_URL}/search`, {
         params: {
           q: query,
+          media_type: 'image',
         },
       });
       setImages(response.data.collection.items);
+      setPage(1); 
       setError(null);
     } catch (err) {
       setError('Error fetching images. Please try again later.');
     }
+    setIsLoading(false);
   };
+
+  
+  useEffect(() => {
+    const start = (page - 1) * perPage;
+    const end = start + perPage;
+    setDisplayedImages(images.slice(start, end));
+  }, [images, page]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -36,16 +51,29 @@ const NasaImages = () => {
   const closeDetails = () => {
     setSelectedImage(null);
   };
-return (
- <div>
+
+  const handleNextPage = () => {
+    if (page < Math.ceil(images.length / perPage)) {
+      setPage(page + 1);
+    }
+  };
+
+  const handlePreviousPage = () => {
+    if (page > 1) {
+      setPage(page - 1);
+    }
+  };
+
+  return (
+    <div>
       <h1>NASA Image Search</h1>
-      <form
-     onSubmit={handleSearch}>
+      <form onSubmit={handleSearch}>
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search for space images..."
+          required
         />
         <button type="submit">Search</button>
       </form>
@@ -53,22 +81,35 @@ return (
       {error && <p style={{ color: 'red' }}>{error}</p>}
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-        {images.map((item, index) => (
-          <div
-            key={index}
-            style={{ width: '200px', cursor: 'pointer' }}
-            onClick={() => handleImageClick(item)}
-          >
-            {item.links && item.links[0] && (
-              <img
-                src={item.links[0].href}
-                alt={item.data[0].title}
-                style={{ width: '100%' }}
-              />
-            )}
-            <p>{item.data[0].title}</p>
-          </div>
-        ))}
+        {isLoading ? (
+          <p>Loading...</p>
+        ) : (
+          displayedImages.map((item, index) => (
+            <div
+              key={index}
+              style={{ width: '200px', cursor: 'pointer' }}
+              onClick={() => handleImageClick(item)}
+            >
+              {item.links && item.links[0] && (
+                <img
+                  src={item.links[0].href}
+                  alt={item.data[0].title}
+                  style={{ width: '100%' }}
+                />
+              )}
+              <p>{item.data[0].title}</p>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div style={{ marginTop: '10px' }}>
+        <button onClick={handlePreviousPage} disabled={page === 1}>
+          Previous
+        </button>
+        <button onClick={handleNextPage} disabled={page >= Math.ceil(images.length / perPage)}>
+          Next
+        </button>
       </div>
 
       {selectedImage && (
@@ -104,4 +145,5 @@ return (
 };
 
 export default NasaImages;
+
 
